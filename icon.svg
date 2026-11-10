@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="96" fill="#1f5f2e"/>
+  <path d="M96 340 Q256 230 416 340 L416 396 L96 396 Z" fill="#8bc34a"/>
+  <path d="M96 380 Q256 280 416 380" stroke="#2e7d32" stroke-width="14" fill="none"/>
+  <path d="M256 330 C256 250 256 200 256 140" stroke="#fff" stroke-width="18" stroke-linecap="round"/>
+  <path d="M256 220 C200 210 170 170 168 130 C220 132 252 168 256 220 Z" fill="#fff"/>
+  <path d="M256 190 C312 180 342 140 344 100 C292 102 260 138 256 190 Z" fill="#fff"/>
+  <text x="256" y="488" font-family="Helvetica, Arial, sans-serif" font-weight="700" font-size="64" fill="#fff" text-anchor="middle" letter-spacing="6">FCG</text>
+</svg>

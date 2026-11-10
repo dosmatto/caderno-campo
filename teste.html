@@ -1,0 +1,115 @@
+<!doctype html>
+<!-- Teste automático do app (roda no Chrome headless). Não faz parte do app. -->
+<meta charset="utf-8">
+<iframe id="f" src="index.html" style="width:375px;height:812px"></iframe>
+<pre id="saida">rodando</pre>
+<script>
+const espera = (ms) => new Promise((r) => setTimeout(r, ms));
+const f = document.getElementById('f');
+const log = [];
+function ok(cond, msg) { log.push((cond ? 'OK   ' : 'FALHA ') + msg); }
+
+f.onload = async () => {
+  const w = f.contentWindow, d = w.document, $ = (s) => d.querySelector(s);
+  try {
+    for (let i = 0; i < 600 && !(w.__caderno && $('#reg-talhao').options.length); i++) await espera(100);
+    // 1. KML
+    const kml = await (await fetch('exemplo-talhoes.kml')).text();
+    let dt = new w.DataTransfer(); dt.items.add(new w.File([kml], 'fazenda.kml'));
+    $('#kml-input').files = dt.files; $('#kml-input').dispatchEvent(new w.Event('change'));
+    await espera(800);
+    log.push('     toast: ' + $('#toast').textContent + ' | opções: ' + $('#reg-talhao').options.length + ' | ' + (d.body.firstElementChild.textContent || '').slice(0, 120));
+    const tal = w.__caderno.dados().talhoes;
+    ok(tal.length === 3, 'KML importou 3 talhões: ' + tal.map((t) => `${t.nome}=${t.area}ha`).join(', '));
+    // reimportar não duplica
+    dt = new w.DataTransfer(); dt.items.add(new w.File([kml], 'fazenda.kml'));
+    $('#kml-input').files = dt.files; $('#kml-input').dispatchEvent(new w.Event('change'));
+    await espera(800);
+    ok(w.__caderno.dados().talhoes.length === 3, 'reimportar não duplica');
+
+    function fotoFake(cor, texto) {
+      const c = d.createElement('canvas'); c.width = 2000; c.height = 1500;
+      const g = c.getContext('2d'); g.fillStyle = cor; g.fillRect(0, 0, 2000, 1500);
+      g.fillStyle = '#fff'; g.font = 'bold 150px sans-serif'; g.fillText(texto, 150, 800);
+      const bin = atob(c.toDataURL('image/jpeg', 0.9).split(',')[1]); const by = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) by[i] = bin.charCodeAt(i);
+      return new w.File([by], 'foto.jpg', { type: 'image/jpeg' });
+    }
+    async function registrar(lon, lat, cond, estadio, obs, cores, esperado, sit, pct) {
+      w.__caderno.simularPosicao(lon, lat);
+      const nome = $('#reg-talhao').selectedOptions[0].text;
+      ok(nome.startsWith(esperado), `GPS ${lon},${lat} → "${nome}" | ${$('#gps').textContent}`);
+      $(`#reg-sit button[data-s=${sit}]`).click();
+      if (sit === 'plantando') {
+        $('#reg-pct').value = '';
+        $('#reg-salvar').click(); await espera(150);
+        ok(/% plantado/.test($('#toast').textContent), 'plantando sem % não salva: ' + $('#toast').textContent);
+        $('#reg-pct').value = pct;
+      }
+      ok(!!$('#reg-plantio').value || sit === 'aplantar', 'data de plantio preenchida: ' + $('#reg-plantio').value);
+      if (cores.length) {
+        const dt = new w.DataTransfer(); cores.forEach((c, i) => dt.items.add(fotoFake(c, `${esperado} foto ${i + 1}`)));
+        $('#reg-foto-input').files = dt.files; $('#reg-foto-input').dispatchEvent(new w.Event('change'));
+        await Promise.resolve();
+        ok($('#reg-salvar').disabled, 'botão trava enquanto prepara fotos: ' + $('#reg-salvar').textContent);
+        for (let i = 0; i < 100 && $('#reg-salvar').disabled; i++) await espera(100);
+      }
+      if (cond) $(`#reg-cond button[data-v=${cond}]`).click();
+      $('#reg-estadio').value = estadio; $('#reg-obs').value = obs;
+      $('#reg-salvar').click(); await espera(600);
+      log.push('     ' + $('#toast').textContent);
+    }
+    await registrar(-50.083, -25.095, 'boa', 'V4', 'Lavoura uniforme, sem pragas.', ['#3a7d2c', '#4f8f3a', '#2f6b22'], 'Talhão 02', 'plantado');
+    await registrar(-50.1004, -25.096, 'ruim', 'V3', 'Falha de plantio na cabeceira e ataque de lagarta. Precisa reaplicar inseticida nesta semana.', ['#8a7a3a'], 'Talhão 01', 'plantando', '70');
+    await registrar(-50.090, -25.090, 'media', 'V2', 'Emergência desuniforme na parte de baixo.', ['#6b7a3a', '#5a6b2a'], 'Talhão 03', 'plantado');
+    // fora de tudo: não troca sozinho
+    w.__caderno.simularPosicao(-50.2, -25.2);
+    ok($('#gps').classList.contains('aviso'), 'longe dos talhões avisa: ' + $('#gps').textContent);
+
+    // talhão novo sem mapa, a plantar, pelo diálogo
+    d.querySelector('nav button[data-tela=talhoes]').click(); await espera(100);
+    $('#tal-novo').click();
+    $('#f-nome').value = 'Talhão 04'; $('#f-area').value = '40'; $('#f-cultura').value = 'Milho';
+    $('#f-sit button[data-s=plantando]').click(); $('#f-pct').value = '';
+    $('#form-talhao button[value=salvar]').click(); await espera(150);
+    ok($('#dlg-talhao').open && /% plantado/.test($('#toast').textContent), 'diálogo barra plantando sem %: ' + $('#toast').textContent);
+    $('#f-sit button[data-s=aplantar]').click();
+    $('#form-talhao button[value=salvar]').click(); await espera(300);
+    const t4 = w.__caderno.dados().talhoes.find((t) => t.nome === 'Talhão 04');
+    ok(t4 && t4.plantadoPct === 0 && !$('#dlg-talhao').open, 'Talhão 04 salvo como a plantar: ' + JSON.stringify(t4 && { pct: t4.plantadoPct, plantio: t4.plantio }));
+    log.push('     lista: ' + $('#lista-talhoes').innerText.replace(/\n+/g, ' | ').slice(0, 400));
+    // registro só de observação num talhão a plantar (sem condição)
+    d.querySelector('nav button[data-tela=registrar]').click(); await espera(100);
+    $('#reg-talhao').value = t4.id; $('#reg-talhao').dispatchEvent(new w.Event('change'));
+    ok($('#reg-sit button.sel')?.dataset.s === 'aplantar' && $('#reg-cond').style.display === 'none', 'talhão a plantar esconde a condição');
+    $('#reg-obs').value = 'Área dessecada, plantio previsto para a semana que vem.';
+    $('#reg-salvar').click(); await espera(500);
+    log.push('     ' + $('#toast').textContent);
+
+    const tal2 = w.__caderno.dados().talhoes;
+    log.push('     plantio: ' + tal2.map((t) => `${t.nome}=${t.plantadoPct}%/${t.plantio || '-'}`).join(', '));
+    ok(tal2.find((t) => t.nome.startsWith('Talhão 01')).plantadoPct === 70, 'registro atualizou o % do Talhão 01');
+
+    const regs = w.__caderno.dados().registros;
+    ok(regs.length === 4 && regs[3].condicao === '' && regs[3].plantadoPct === 0, 'registros salvos: ' + regs.map((r) => `${r.talhaoNome}/${r.condicao || 'sem cond'}/${r.plantadoPct}%/${r.fotos.length}fotos`).join(', '));
+    $('#reg-talhao').value = regs[2].talhaoId; $('#reg-talhao').dispatchEvent(new w.Event('change'));
+    ok(regs.every((r) => r.fotos.every((f) => f.w <= 1400)), 'fotos reduzidas para até 1400px');
+
+    // validações
+    $('#reg-salvar').click(); await espera(200);
+    ok(/condição/.test($('#toast').textContent), 'sem condição não salva: ' + $('#toast').textContent);
+
+    // relatório e PDF
+    d.querySelector('nav button[data-tela=relatorio]').click(); await espera(200);
+    log.push('     resumo: ' + $('#sem-resumo').innerText.replace(/\n/g, ' '));
+    log.push('     ' + $('#sem-plantio').textContent);
+    const seg = new Date(); seg.setHours(0, 0, 0, 0); seg.setDate(seg.getDate() - ((seg.getDay() + 6) % 7));
+    const pdf = await w.__caderno.gerarPDF(seg);
+    ok(pdf.size > 10000, `PDF gerado: ${pdf.name} ${(pdf.size / 1024).toFixed(0)} KB`);
+    const b64 = await new Promise((r) => { const fr = new FileReader(); fr.onload = () => r(fr.result.split(',')[1]); fr.readAsDataURL(pdf); });
+    document.getElementById('saida').textContent = log.join('\n') + '\n@@PDF@@' + b64 + '@@FIM@@';
+  } catch (e) {
+    document.getElementById('saida').textContent = log.join('\n') + '\nERRO ' + e.message + '\n' + e.stack;
+  }
+};
+</script>

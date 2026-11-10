@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1f5f2e">
+<title>Caderno de Campo FCG</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<style>
+  :root {
+    --verde: #1f5f2e; --verde-claro: #e8f2ea; --fundo: #f5f6f3; --texto: #1c2420;
+    --cinza: #6b7570; --linha: #dde2dc; --boa: #2e9e4f; --media: #e0a800; --ruim: #d23c32;
+    --card: #fff;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--fundo); color: var(--texto);
+    font: 16px/1.4 -apple-system, "Segoe UI", Roboto, sans-serif; }
+  header { background: var(--verde); color: #fff; padding: 14px 16px calc(12px) ;
+    padding-top: calc(14px + env(safe-area-inset-top)); position: sticky; top: 0; z-index: 5; }
+  header h1 { margin: 0; font-size: 19px; }
+  header small { opacity: .85; }
+  main { padding: 12px 16px 96px; max-width: 720px; margin: 0 auto; }
+  nav { position: fixed; bottom: 0; left: 0; right: 0; display: flex; background: #fff;
+    border-top: 1px solid var(--linha); padding-bottom: env(safe-area-inset-bottom); z-index: 5; }
+  nav button { flex: 1; border: 0; background: none; padding: 9px 2px 8px; font-size: 12px;
+    color: var(--cinza); display: flex; flex-direction: column; align-items: center; gap: 2px; }
+  nav button span { font-size: 21px; line-height: 1; }
+  nav button.ativo { color: var(--verde); font-weight: 600; }
+  .tela { display: none; } .tela.ativa { display: block; }
+  .card { background: var(--card); border-radius: 12px; padding: 14px; margin-bottom: 12px;
+    box-shadow: 0 1px 2px rgba(0,0,0,.06); }
+  h2 { font-size: 17px; margin: 4px 0 10px; }
+  label { display: block; font-size: 13px; color: var(--cinza); margin: 10px 0 4px; }
+  input, select, textarea { width: 100%; font: inherit; padding: 11px 12px; border: 1px solid var(--linha);
+    border-radius: 9px; background: #fff; color: var(--texto); }
+  textarea { min-height: 80px; resize: vertical; }
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; border: 0;
+    border-radius: 10px; padding: 13px 16px; font: inherit; font-weight: 600; background: var(--verde);
+    color: #fff; width: 100%; margin-top: 10px; }
+  .btn.sec { background: var(--verde-claro); color: var(--verde); }
+  .btn.perigo { background: #fbe9e7; color: var(--ruim); }
+  .btn:disabled { opacity: .5; }
+  .linha2 { display: flex; gap: 8px; } .linha2 > * { flex: 1; }
+  .cond { display: flex; gap: 8px; margin-top: 4px; }
+  .cond button { flex: 1; padding: 14px 4px; border-radius: 10px; border: 2px solid var(--linha);
+    background: #fff; font: inherit; font-weight: 600; }
+  .cond button[data-v=boa].sel { background: var(--boa); border-color: var(--boa); color: #fff; }
+  .cond button[data-v=media].sel { background: var(--media); border-color: var(--media); color: #fff; }
+  .cond button[data-v=ruim].sel { background: var(--ruim); border-color: var(--ruim); color: #fff; }
+  .sit button.sel { background: var(--verde); border-color: var(--verde); color: #fff; }
+  .sit button[data-s=aplantar].sel { background: #8d9690; border-color: #8d9690; }
+  .sit button[data-s=plantando].sel { background: #2f7fb5; border-color: #2f7fb5; }
+  .selo.aplantar { background: #8d9690; } .selo.plantando { background: #2f7fb5; } .selo.plantado { background: var(--verde); }
+  .gps { font-size: 14px; padding: 10px 12px; border-radius: 9px; background: var(--verde-claro); color: var(--verde); }
+  .gps.aviso { background: #fff4d6; color: #7a5a00; }
+  .fotos { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 8px; }
+  .fotos div { position: relative; aspect-ratio: 1; border-radius: 8px; overflow: hidden; background: #ddd; }
+  .fotos img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .fotos button { position: absolute; top: 3px; right: 3px; border: 0; border-radius: 50%; width: 26px;
+    height: 26px; background: rgba(0,0,0,.6); color: #fff; font-size: 15px; }
+  .item { display: flex; align-items: center; gap: 10px; padding: 11px 0; border-bottom: 1px solid var(--linha); }
+  .item:last-child { border-bottom: 0; }
+  .item .info { flex: 1; min-width: 0; }
+  .item .info b { display: block; }
+  .item .info small { color: var(--cinza); }
+  .selo { font-size: 12px; font-weight: 700; padding: 3px 8px; border-radius: 20px; color: #fff; white-space: nowrap; }
+  .selo.boa { background: var(--boa); } .selo.media { background: var(--media); }
+  .selo.ruim { background: var(--ruim); } .selo.nada { background: #b9c0bb; }
+  .vazio { color: var(--cinza); text-align: center; padding: 20px 0; }
+  canvas.mapa { width: 100%; height: 220px; border-radius: 10px; background: #eef1ec; display: block; margin-top: 8px; }
+  .semana { display: flex; align-items: center; gap: 8px; }
+  .semana button { width: 46px; flex: none; margin: 0; }
+  .semana div { flex: 1; text-align: center; font-weight: 600; }
+  .resumo { display: flex; gap: 8px; margin-top: 10px; }
+  .resumo div { flex: 1; border-radius: 10px; padding: 8px; text-align: center; color: #fff; font-size: 13px; }
+  .resumo b { display: block; font-size: 20px; }
+  #toast { position: fixed; left: 50%; bottom: 90px; transform: translateX(-50%); background: #222; color: #fff;
+    padding: 10px 16px; border-radius: 20px; font-size: 14px; opacity: 0; transition: opacity .25s; pointer-events: none; z-index: 20; max-width: 90%; }
+  #toast.on { opacity: .95; }
+  dialog { border: 0; border-radius: 14px; padding: 16px; width: min(92vw, 480px); }
+  dialog::backdrop { background: rgba(0,0,0,.4); }
+  .dica { font-size: 13px; color: var(--cinza); margin-top: 6px; }
+</style>
+</head>
+<body>
+<header>
+  <h1 id="titulo">Fazenda FCG</h1>
+  <small id="subtitulo">Relatório semanal das lavouras</small>
+</header>
+
+<main>
+  <!-- REGISTRAR -->
+  <section class="tela ativa" id="t-registrar">
+    <div class="card">
+      <h2>Onde você está</h2>
+      <div id="gps" class="gps">Procurando sua posição…</div>
+      <canvas class="mapa" id="mapa-reg"></canvas>
+      <label for="reg-talhao">Talhão</label>
+      <select id="reg-talhao"></select>
+      <div class="dica" id="reg-talhao-info"></div>
+    </div>
+
+    <div class="card">
+      <h2>Plantio deste talhão</h2>
+      <div class="cond sit" id="reg-sit">
+        <button type="button" data-s="aplantar">A plantar</button>
+        <button type="button" data-s="plantando">Plantando</button>
+        <button type="button" data-s="plantado">Plantado</button>
+      </div>
+      <div class="linha2">
+        <div id="reg-pct-box"><label for="reg-pct">% plantado</label><input id="reg-pct" inputmode="numeric" placeholder="Ex.: 60"></div>
+        <div id="reg-plantio-box"><label for="reg-plantio">Data de plantio</label><input id="reg-plantio" type="date"></div>
+      </div>
+    </div>
+
+    <div class="card" id="reg-cond-card">
+      <h2>Condição da lavoura nesta semana</h2>
+      <div class="cond" id="reg-cond">
+        <button type="button" data-v="boa">Boa</button>
+        <button type="button" data-v="media">Média</button>
+        <button type="button" data-v="ruim">Ruim</button>
+      </div>
+      <label for="reg-estadio">Estádio (opcional)</label>
+      <input id="reg-estadio" list="lista-estadios" placeholder="Ex.: V4, R1, R5.3">
+      <datalist id="lista-estadios"></datalist>
+      <label for="reg-obs">Observações (pragas, doenças, falhas, chuva…)</label>
+      <textarea id="reg-obs" placeholder="O que você viu no talhão"></textarea>
+    </div>
+
+    <div class="card">
+      <h2>Fotos</h2>
+      <input type="file" id="reg-foto-input" accept="image/*" capture="environment" multiple hidden>
+      <button class="btn sec" id="reg-foto-btn" type="button">📷 Tirar foto</button>
+      <div class="fotos" id="reg-fotos"></div>
+    </div>
+
+    <button class="btn" id="reg-salvar" type="button">Salvar registro</button>
+  </section>
+
+  <!-- TALHÕES -->
+  <section class="tela" id="t-talhoes">
+    <div class="card">
+      <h2>Mapa dos talhões</h2>
+      <input type="file" id="kml-input" accept=".kml,.kmz,application/vnd.google-earth.kml+xml,application/vnd.google-earth.kmz" hidden>
+      <button class="btn" id="kml-btn" type="button">🗺️ Subir arquivo KML / KMZ</button>
+      <div class="dica">Cada polígono do arquivo vira um talhão, com a área calculada. Se você subir o arquivo de novo, o app atualiza os contornos e mantém a cultura e a cultivar.</div>
+      <canvas class="mapa" id="mapa-tal"></canvas>
+    </div>
+    <div class="card">
+      <h2>Talhões cadastrados</h2>
+      <div id="lista-talhoes"></div>
+      <button class="btn sec" id="tal-novo" type="button">+ Talhão sem mapa</button>
+    </div>
+  </section>
+
+  <!-- RELATÓRIO -->
+  <section class="tela" id="t-relatorio">
+    <div class="card">
+      <div class="semana">
+        <button class="btn sec" id="sem-ant" type="button">‹</button>
+        <div id="sem-rotulo"></div>
+        <button class="btn sec" id="sem-prox" type="button">›</button>
+      </div>
+      <div class="resumo" id="sem-resumo"></div>
+      <div class="dica" id="sem-plantio" style="margin-bottom:10px"></div>
+      <button class="btn" id="pdf-btn" type="button">📄 Gerar PDF e enviar</button>
+      <div class="dica">No celular abre o menu de compartilhar: escolha o WhatsApp e o grupo dos sócios.</div>
+    </div>
+    <div class="card">
+      <h2>Talhões na semana</h2>
+      <div id="sem-talhoes"></div>
+    </div>
+    <div class="card">
+      <h2>Registros da semana</h2>
+      <div id="sem-registros"></div>
+    </div>
+  </section>
+
+  <!-- AJUSTES -->
+  <section class="tela" id="t-ajustes">
+    <div class="card">
+      <h2>Fazenda</h2>
+      <label for="cfg-fazenda">Nome da fazenda</label>
+      <input id="cfg-fazenda" placeholder="Fazenda FCG">
+      <label for="cfg-gerente">Gerente de campo</label>
+      <input id="cfg-gerente" placeholder="Seu nome">
+      <label for="cfg-safra">Safra</label>
+      <input id="cfg-safra" placeholder="Ex.: 2026/27">
+      <button class="btn" id="cfg-salvar" type="button">Salvar</button>
+    </div>
+    <div class="card">
+      <h2>Cópia de segurança</h2>
+      <div class="dica">Os dados ficam só neste celular. Faça uma cópia de vez em quando (manda para você mesmo no WhatsApp ou no e-mail). A cópia também serve para passar tudo para outro celular.</div>
+      <button class="btn sec" id="bkp-exportar" type="button">💾 Fazer cópia</button>
+      <input type="file" id="bkp-input" accept=".json,application/json" hidden>
+      <button class="btn sec" id="bkp-importar" type="button">↩️ Restaurar cópia</button>
+      <div class="dica" id="armazenamento"></div>
+    </div>
+  </section>
+</main>
+
+<nav>
+  <button class="ativo" data-tela="registrar"><span>📝</span>Registrar</button>
+  <button data-tela="talhoes"><span>🗺️</span>Talhões</button>
+  <button data-tela="relatorio"><span>📄</span>Relatório</button>
+  <button data-tela="ajustes"><span>⚙️</span>Ajustes</button>
+</nav>
+
+<dialog id="dlg-talhao">
+  <form method="dialog" id="form-talhao">
+    <h2 id="dlg-titulo">Talhão</h2>
+    <label for="f-nome">Nome</label>
+    <input id="f-nome" required>
+    <div class="linha2">
+      <div><label for="f-area">Área (ha)</label><input id="f-area" inputmode="decimal"></div>
+      <div><label for="f-cultura">Cultura</label>
+        <input id="f-cultura" list="lista-culturas" placeholder="Soja"></div>
+    </div>
+    <datalist id="lista-culturas">
+      <option value="Soja"><option value="Milho"><option value="Trigo"><option value="Feijão">
+      <option value="Aveia"><option value="Cevada"><option value="Sorgo"><option value="Algodão">
+    </datalist>
+    <label for="f-cultivar">Cultivar / híbrido</label>
+    <input id="f-cultivar" placeholder="Ex.: BMX Zeus IPRO">
+    <label>Situação do plantio</label>
+    <div class="cond sit" id="f-sit">
+      <button type="button" data-s="aplantar">A plantar</button>
+      <button type="button" data-s="plantando">Plantando</button>
+      <button type="button" data-s="plantado">Plantado</button>
+    </div>
+    <div class="linha2">
+      <div id="f-pct-box"><label for="f-pct">% plantado</label><input id="f-pct" inputmode="numeric" placeholder="Ex.: 60"></div>
+      <div id="f-plantio-box"><label for="f-plantio">Data de plantio</label><input id="f-plantio" type="date"></div>
+    </div>
+    <div class="dica" id="f-area-calc"></div>
+    <div class="linha2">
+      <button class="btn sec" value="cancelar" type="submit">Cancelar</button>
+      <button class="btn" value="salvar" type="submit">Salvar</button>
+    </div>
+    <button class="btn perigo" id="f-excluir" value="excluir" type="submit">Excluir talhão</button>
+  </form>
+</dialog>
+
+<div id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="geo.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

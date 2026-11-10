@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+<Document>
+  <name>Fazenda Exemplo</name>
+  <Placemark>
+    <name>Talhão 01</name>
+    <ExtendedData><SchemaData><SimpleData name="cultura">Soja</SimpleData></SchemaData></ExtendedData>
+    <Polygon><outerBoundaryIs><LinearRing><coordinates>
+      -50.100,-25.100,0 -50.090,-25.100,0 -50.090,-25.092,0 -50.100,-25.092,0 -50.100,-25.100,0
+    </coordinates></LinearRing></outerBoundaryIs></Polygon>
+  </Placemark>
+  <Placemark>
+    <name>Talhão 02</name>
+    <Polygon>
+      <outerBoundaryIs><LinearRing><coordinates>
+        -50.090,-25.100 -50.082,-25.100 -50.082,-25.094 -50.090,-25.094 -50.090,-25.100
+      </coordinates></LinearRing></outerBoundaryIs>
+      <innerBoundaryIs><LinearRing><coordinates>
+        -50.087,-25.098 -50.085,-25.098 -50.085,-25.096 -50.087,-25.096 -50.087,-25.098
+      </coordinates></LinearRing></innerBoundaryIs>
+    </Polygon>
+  </Placemark>
+  <Placemark>
+    <name>Talhão 03</name>
+    <MultiGeometry>
+      <Polygon><outerBoundaryIs><LinearRing><coordinates>
+        -50.100,-25.092 -50.094,-25.092 -50.094,-25.088 -50.100,-25.088 -50.100,-25.092
+      </coordinates></LinearRing></outerBoundaryIs></Polygon>
+      <Polygon><outerBoundaryIs><LinearRing><coordinates>
+        -50.093,-25.092 -50.088,-25.092 -50.088,-25.089 -50.093,-25.089 -50.093,-25.092
+      </coordinates></LinearRing></outerBoundaryIs></Polygon>
+    </MultiGeometry>
+  </Placemark>
+</Document>
+</kml>
