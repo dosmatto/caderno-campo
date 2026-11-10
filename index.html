@@ -143,7 +143,7 @@
   <section class="tela" id="t-talhoes">
     <div class="card">
       <h2>Mapa dos talhões</h2>
-      <input type="file" id="kml-input" accept=".kml,.kmz,application/vnd.google-earth.kml+xml,application/vnd.google-earth.kmz" hidden>
+      <input type="file" id="kml-input" hidden>
       <button class="btn" id="kml-btn" type="button">🗺️ Subir arquivo KML / KMZ</button>
       <div class="dica">Cada polígono do arquivo vira um talhão, com a área calculada. Se você subir o arquivo de novo, o app atualiza os contornos e mantém a cultura e a cultivar.</div>
       <canvas class="mapa" id="mapa-tal"></canvas>
@@ -194,7 +194,7 @@
       <h2>Cópia de segurança</h2>
       <div class="dica">Os dados ficam só neste celular. Faça uma cópia de vez em quando (manda para você mesmo no WhatsApp ou no e-mail). A cópia também serve para passar tudo para outro celular.</div>
       <button class="btn sec" id="bkp-exportar" type="button">💾 Fazer cópia</button>
-      <input type="file" id="bkp-input" accept=".json,application/json" hidden>
+      <input type="file" id="bkp-input" hidden>
       <button class="btn sec" id="bkp-importar" type="button">↩️ Restaurar cópia</button>
       <div class="dica" id="armazenamento"></div>
     </div>

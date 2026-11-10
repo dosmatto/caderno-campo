@@ -59,18 +59,35 @@
     return saida;
   }
 
+  // transforma os bytes em texto respeitando BOM (UTF-8/UTF-16) e o encoding do cabeçalho XML
+  function decodificar(bytes) {
+    if (bytes[0] === 0xff && bytes[1] === 0xfe) return new TextDecoder('utf-16le').decode(bytes);
+    if (bytes[0] === 0xfe && bytes[1] === 0xff) return new TextDecoder('utf-16be').decode(bytes);
+    const cabeca = new TextDecoder('latin1').decode(bytes.slice(0, 200));
+    const m = cabeca.match(/encoding=["']([\w-]+)["']/i);
+    try { return new TextDecoder(m ? m[1].toLowerCase() : 'utf-8').decode(bytes); }
+    catch (e) { return new TextDecoder('utf-8').decode(bytes); }
+  }
+
+  // decide KML ou KMZ pelo conteúdo (o celular às vezes perde ou troca a extensão do arquivo)
   async function lerArquivoMapa(arquivo) {
-    const nome = arquivo.name.toLowerCase();
-    if (nome.endsWith('.kmz')) {
-      if (!window.JSZip) throw new Error('Sem internet para abrir KMZ. Tente um .kml');
-      const zip = await window.JSZip.loadAsync(arquivo);
+    const bytes = new Uint8Array(await arquivo.arrayBuffer());
+    if (!bytes.length) throw new Error('o arquivo veio vazio');
+    const ehZip = bytes[0] === 0x50 && bytes[1] === 0x4b; // "PK" = KMZ (zip)
+    if (ehZip) {
+      if (!window.JSZip) throw new Error('sem internet para abrir KMZ. Tente um .kml');
+      const zip = await window.JSZip.loadAsync(bytes);
       const kmls = Object.values(zip.files).filter((f) => !f.dir && f.name.toLowerCase().endsWith('.kml'));
-      if (!kmls.length) throw new Error('O KMZ não tem nenhum KML dentro');
+      if (!kmls.length) throw new Error('o KMZ não tem nenhum KML dentro');
       let todos = [];
-      for (const f of kmls) todos = todos.concat(lerKML(await f.async('text')));
+      for (const f of kmls) todos = todos.concat(lerKML(decodificar(await f.async('uint8array'))));
       return todos;
     }
-    return lerKML(await arquivo.text());
+    const texto = decodificar(bytes);
+    if (!/<kml[\s>]/i.test(texto) && !/<Placemark/i.test(texto)) {
+      throw new Error(`"${arquivo.name}" não parece um KML nem KMZ`);
+    }
+    return lerKML(texto);
   }
 
   // ---------- área (fórmula esférica, em hectares) ----------

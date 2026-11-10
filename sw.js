@@ -1,5 +1,5 @@
 // sw.js — deixa o app abrir sem internet na lavoura (guarda as telas e as bibliotecas).
-const CACHE = 'caderno-campo-v2';
+const CACHE = 'caderno-campo-v3';
 const ARQUIVOS = [
   './', 'index.html', 'app.js', 'geo.js', 'manifest.webmanifest', 'icon.svg', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png',
   'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',

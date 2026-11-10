@@ -362,7 +362,7 @@
       toast(`${novos} talhões novos${atualizados ? `, ${atualizados} atualizados` : ''}`, 3500);
       pdfPronto = null;
       renderTalhoes(); renderRegistrar();
-    } catch (e) { toast('Erro ao ler o arquivo: ' + e.message, 5000); }
+    } catch (e) { toast('Erro ao ler o arquivo: ' + e.message, 8000); }
   }
 
   let editando = null;
