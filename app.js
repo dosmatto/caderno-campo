@@ -1,5 +1,5 @@
 // app.js — Caderno de Campo: talhões, registros semanais com fotos e PDF para os sócios.
-// Tudo fica no celular (IndexedDB). Sem servidor, sem login.
+// Tudo fica primeiro no celular (IndexedDB); com login, nuvem.js manda uma cópia para o Supabase.
 (function () {
   'use strict';
   const $ = (s) => document.querySelector(s);
@@ -33,9 +33,19 @@
   }
   const todos = (loja) => tx(loja, 'readonly', (s) => s.getAll());
   const pegar = (loja, k) => tx(loja, 'readonly', (s) => s.get(k));
-  const gravar = (loja, v, k) => tx(loja, 'readwrite', (s) => (k === undefined ? s.put(v) : s.put(v, k)));
-  const apagar = (loja, k) => tx(loja, 'readwrite', (s) => s.delete(k));
-  const limpar = (loja) => tx(loja, 'readwrite', (s) => s.clear());
+  const chaves = (loja) => tx(loja, 'readonly', (s) => s.getAllKeys());
+  const gravarBruto = (loja, v, k) => tx(loja, 'readwrite', (s) => (k === undefined ? s.put(v) : s.put(v, k)));
+  const apagarBruto = (loja, k) => tx(loja, 'readwrite', (s) => s.delete(k));
+  // toda mudança local entra na fila para subir para a nuvem (nuvem.js)
+  const vaiParaNuvem = (loja, k) => loja !== 'cfg' || k === 'cfg';
+  const marcarNuvem = (loja, k) => { if (window.Nuvem && vaiParaNuvem(loja, k)) return window.Nuvem.marcar(loja, k); };
+  async function gravar(loja, v, k) { await gravarBruto(loja, v, k); await marcarNuvem(loja, k === undefined ? v.id : k); }
+  async function apagar(loja, k) { await apagarBruto(loja, k); await marcarNuvem(loja, k); }
+  async function limpar(loja) {
+    const ks = await chaves(loja);
+    await tx(loja, 'readwrite', (s) => s.clear());
+    for (const k of ks) await marcarNuvem(loja, k);
+  }
 
   // ================= estado =================
   let talhoes = [];
@@ -712,6 +722,38 @@
       (persiste ? ' Dados protegidos contra limpeza automática.' : '');
   }
 
+  // ================= nuvem (Supabase) =================
+  function renderNuvem(st) {
+    const caixa = $('#nuvem-status'); if (!caixa) return;
+    $('#nuvem-login').hidden = st.logado;
+    $('#nuvem-conta').hidden = !st.logado;
+    let txt;
+    if (!st.ligado) txt = 'A cópia na nuvem precisa de internet na primeira abertura do app.';
+    else if (!st.logado) txt = 'Entre com o e-mail e a senha para guardar uma cópia de tudo na nuvem.';
+    else {
+      txt = `Conectado como ${st.email}. `;
+      txt += st.sincronizando ? 'Sincronizando…' : st.ultima ? `Última sincronização: ${new Date(st.ultima).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}.` : '';
+      txt += st.pendentes ? ` ${st.pendentes} ${st.pendentes === 1 ? 'item espera' : 'itens esperam'} sinal para subir.` : ' Tudo na nuvem.';
+    }
+    if (st.erro) txt += ` (${st.erro})`;
+    caixa.textContent = txt;
+    const selo = $('#nuvem-selo');
+    if (selo) {
+      selo.hidden = !st.logado;
+      selo.textContent = st.pendentes ? `☁ ${st.pendentes}` : '☁ ✓';
+      selo.title = st.pendentes ? 'Itens esperando sinal para subir' : 'Tudo na nuvem';
+    }
+  }
+  async function entrarNuvem() {
+    const btn = $('#nuvem-entrar'); btn.disabled = true;
+    try {
+      await window.Nuvem.entrar($('#nuvem-email').value, $('#nuvem-senha').value);
+      $('#nuvem-senha').value = '';
+      toast('Conectado à nuvem ✔');
+    } catch (e) { toast(e.message, 5000); }
+    finally { btn.disabled = false; }
+  }
+
   // ================= início =================
   async function carregar() {
     talhoes = await todos('talhoes');
@@ -763,6 +805,12 @@
     $('#bkp-importar').addEventListener('click', () => $('#bkp-input').click());
     $('#bkp-input').addEventListener('change', async (e) => { if (e.target.files[0]) await importarCopia(e.target.files[0]); e.target.value = ''; });
     $$('nav button[data-tela=ajustes]').forEach((b) => b.addEventListener('click', mostrarArmazenamento));
+    $('#nuvem-entrar').addEventListener('click', entrarNuvem);
+    $('#nuvem-senha').addEventListener('keydown', (e) => { if (e.key === 'Enter') entrarNuvem(); });
+    $('#nuvem-agora').addEventListener('click', () => window.Nuvem && window.Nuvem.sincronizar());
+    $('#nuvem-sair').addEventListener('click', async () => {
+      if (confirm('Sair da nuvem? Os dados continuam neste celular.')) await window.Nuvem.sair();
+    });
     window.addEventListener('resize', () => { desenharMapaRegistro(); if ($('#t-talhoes').classList.contains('ativa')) renderTalhoes(); });
   }
 
@@ -772,6 +820,14 @@
       ligarEventos();
       await carregar();
       iniciarGPS();
+      if (window.Nuvem) {
+        window.Nuvem.iniciar({
+          bd: { pegar, chaves, todos, gravar: gravarBruto, apagar: apagarBruto },
+          aoReceber: async () => { await carregar(); pdfPronto = null; },
+          aoEstado: renderNuvem,
+          semGatilhos: !!window.__semGatilhosNuvem,
+        });
+      }
       if (navigator.storage?.persist) navigator.storage.persist();
       if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js').catch(() => {});
     } catch (e) {

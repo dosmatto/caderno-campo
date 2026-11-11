@@ -9,6 +9,43 @@ const f = document.getElementById('f');
 const log = [];
 function ok(cond, msg) { log.push((cond ? 'OK   ' : 'FALHA ') + msg); }
 
+// Supabase falso, só em memória: mesma forma de chamada que o nuvem.js usa
+function nuvemFalsa() {
+  const linhas = new Map(), arquivos = new Map();
+  let relogio = Date.parse('2026-11-11T12:00:00Z');
+  const agora = () => new Date(relogio += 1000).toISOString();
+  const semRede = () => ({ error: { message: 'Failed to fetch' } });
+  const c = {
+    linhas, arquivos, falhar: false,
+    gravarRemoto(loja, id, dados) {
+      linhas.set(loja + '|' + id, { user_id: 'u1', loja, id, dados, apagado: dados == null, atualizado_em: agora() });
+    },
+    auth: {
+      getSession: async () => ({ data: { session: { user: { id: 'u1', email: 'gerente@teste' } } } }),
+      signOut: async () => ({}),
+    },
+    storage: { from: () => ({
+      upload: async (p, b) => { if (c.falhar) return semRede(); arquivos.set(p, b); return {}; },
+      remove: async (ps) => { ps.forEach((p) => arquivos.delete(p)); return {}; },
+      download: async (p) => (arquivos.has(p) ? { data: arquivos.get(p) } : { error: { message: 'sem arquivo ' + p } }),
+    }) },
+    from: () => ({
+      upsert: async (rows) => {
+        if (c.falhar) return semRede();
+        rows.forEach((r) => linhas.set(r.loja + '|' + r.id, JSON.parse(JSON.stringify(Object.assign({}, r, { atualizado_em: agora() })))));
+        return {};
+      },
+      select() {
+        const q = { desde: null, gt(col, v) { q.desde = v; return q; }, order() { return q; },
+          range: async (a, b) => (c.falhar ? semRede() : { data: [...linhas.values()].filter((l) => !q.desde || l.atualizado_em > q.desde)
+            .sort((x, y) => (x.atualizado_em < y.atualizado_em ? -1 : 1)).slice(a, b + 1) }) };
+        return q;
+      },
+    }),
+  };
+  return c;
+}
+
 f.onload = async () => {
   const w = f.contentWindow, d = w.document, $ = (s) => d.querySelector(s);
   try {
@@ -107,6 +144,37 @@ f.onload = async () => {
     const pdf = await w.__caderno.gerarPDF(seg);
     ok(pdf.size > 10000, `PDF gerado: ${pdf.name} ${(pdf.size / 1024).toFixed(0)} KB`);
     const b64 = await new Promise((r) => { const fr = new FileReader(); fr.onload = () => r(fr.result.split(',')[1]); fr.readAsDataURL(pdf); });
+
+    // nuvem: sem login não faz nada; com uma nuvem falsa, sobe tudo, recebe mudanças e segura o que falhou
+    const N = w.Nuvem;
+    ok(N && !N.estado().logado && N.estado().pendentes > 0, `sem login: nada sobe (${N && N.estado().pendentes} na fila, biblioteca ${N && N.estado().ligado ? 'carregada' : 'ausente'})`);
+    const nf = nuvemFalsa();
+    await N.usarCliente(nf);
+    const regsN = w.__caderno.dados().registros, nFotos = regsN.reduce((s, r) => s + r.fotos.length, 0);
+    const esperadas = w.__caderno.dados().talhoes.length + regsN.length + nFotos + 1;
+    ok(nf.linhas.size === esperadas && nf.arquivos.size === nFotos && N.estado().pendentes === 0,
+      `primeiro login sobe tudo: ${nf.linhas.size}/${esperadas} linhas, ${nf.arquivos.size} fotos, fila ${N.estado().pendentes} | ${$('#nuvem-status').textContent}`);
+    const fotoLinha = [...nf.linhas.values()].find((l) => l.loja === 'fotos');
+    ok(fotoLinha && fotoLinha.dados.caminho === `u1/${fotoLinha.id}.jpg`, 'foto vai para a pasta do usuário: ' + (fotoLinha && fotoLinha.dados.caminho));
+    // mudança feita em outro celular
+    const t1 = w.__caderno.dados().talhoes.find((t) => t.nome.startsWith('Talhão 01'));
+    nf.gravarRemoto('talhoes', t1.id, Object.assign({}, t1, { cultivar: 'Cultivar do outro celular' }));
+    const rApagar = regsN[3];
+    nf.gravarRemoto('registros', rApagar.id, null);
+    await N.sincronizar();
+    const depois = w.__caderno.dados();
+    ok(depois.talhoes.find((t) => t.id === t1.id).cultivar === 'Cultivar do outro celular', 'recebe talhão alterado na nuvem');
+    ok(depois.registros.length === regsN.length - 1, `recebe exclusão de registro: ${depois.registros.length} registros`);
+    // sem sinal: fica na fila e sobe depois
+    nf.falhar = true;
+    d.querySelector('nav button[data-tela=ajustes]').click(); await espera(100);
+    $('#cfg-fazenda').value = 'Fazenda FCG Teste'; $('#cfg-salvar').click(); await espera(200);
+    await N.sincronizar();
+    ok(N.estado().pendentes === 1 && /Sem conexão/.test(N.estado().erro), `sem sinal segura na fila: ${N.estado().pendentes} | ${N.estado().erro}`);
+    nf.falhar = false;
+    await N.sincronizar();
+    ok(N.estado().pendentes === 0 && nf.linhas.get('cfg|cfg').dados.fazenda === 'Fazenda FCG Teste', 'volta o sinal, sobe o ajuste: ' + $('#nuvem-status').textContent);
+    ok(!$('#nuvem-selo').hidden && $('#nuvem-selo').textContent === '☁ ✓', 'selo no cabeçalho: ' + $('#nuvem-selo').textContent);
     document.getElementById('saida').textContent = log.join('\n') + '\n@@PDF@@' + b64 + '@@FIM@@';
   } catch (e) {
     document.getElementById('saida').textContent = log.join('\n') + '\nERRO ' + e.message + '\n' + e.stack;

@@ -21,6 +21,8 @@
     padding-top: calc(14px + env(safe-area-inset-top)); position: sticky; top: 0; z-index: 5; }
   header h1 { margin: 0; font-size: 19px; }
   header small { opacity: .85; }
+  #nuvem-selo { position: absolute; right: 16px; bottom: 12px; font-size: 13px; background: rgba(255,255,255,.18);
+    border-radius: 12px; padding: 2px 9px; }
   main { padding: 12px 16px 96px; max-width: 720px; margin: 0 auto; }
   nav { position: fixed; bottom: 0; left: 0; right: 0; display: flex; background: #fff;
     border-top: 1px solid var(--linha); padding-bottom: env(safe-area-inset-bottom); z-index: 5; }
@@ -88,6 +90,7 @@
 <header>
   <h1 id="titulo">Fazenda FCG</h1>
   <small id="subtitulo">Relatório semanal das lavouras</small>
+  <span id="nuvem-selo" hidden></span>
 </header>
 
 <main>
@@ -191,8 +194,24 @@
       <button class="btn" id="cfg-salvar" type="button">Salvar</button>
     </div>
     <div class="card">
+      <h2>Cópia na nuvem</h2>
+      <div class="dica" id="nuvem-status">Carregando…</div>
+      <div id="nuvem-login" hidden>
+        <label for="nuvem-email">E-mail</label>
+        <input id="nuvem-email" type="email" autocomplete="username" inputmode="email">
+        <label for="nuvem-senha">Senha</label>
+        <input id="nuvem-senha" type="password" autocomplete="current-password">
+        <button class="btn" id="nuvem-entrar" type="button">Entrar</button>
+      </div>
+      <div id="nuvem-conta" hidden>
+        <button class="btn sec" id="nuvem-agora" type="button">🔄 Sincronizar agora</button>
+        <button class="btn sec" id="nuvem-sair" type="button">Sair</button>
+      </div>
+      <div class="dica">O app grava primeiro no celular e funciona sem sinal. Quando volta a internet, manda tudo (fotos também) para a nuvem. Em outro celular, é só entrar com a mesma conta.</div>
+    </div>
+    <div class="card">
       <h2>Cópia de segurança</h2>
-      <div class="dica">Os dados ficam só neste celular. Faça uma cópia de vez em quando (manda para você mesmo no WhatsApp ou no e-mail). A cópia também serve para passar tudo para outro celular.</div>
+      <div class="dica">Cópia em arquivo, para guardar fora do app (manda para você mesmo no WhatsApp ou no e-mail).</div>
       <button class="btn sec" id="bkp-exportar" type="button">💾 Fazer cópia</button>
       <input type="file" id="bkp-input" hidden>
       <button class="btn sec" id="bkp-importar" type="button">↩️ Restaurar cópia</button>
@@ -247,7 +266,9 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script src="geo.js"></script>
+<script src="nuvem.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

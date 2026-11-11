@@ -8,7 +8,8 @@ por talhão, com relatório semanal em PDF para mandar aos sócios pelo WhatsApp
 
 ## Escopo combinado (v1, 10/11/2026)
 
-- Um gerente só. Os dados ficam **só no celular** (sem servidor, sem login).
+- Um gerente só. Os dados ficam primeiro no celular e, com login, sobem para a nuvem
+  (Supabase, projeto `william-os`) quando tem sinal. Ver "Nuvem" abaixo (11/11/2026).
 - Marca Fazenda FCG, sem logo.
 - Relatório com a condição da lavoura (Boa / Média / Ruim) e a situação do plantio
   (A plantar / Plantando / Plantado, % plantado e data).
@@ -33,10 +34,29 @@ por talhão, com relatório semanal em PDF para mandar aos sócios pelo WhatsApp
    pela condição, a tabela dos talhões (situação, data e % de plantio, estádio, condição) e uma
    página por talhão visitado, com as fotos. Numa semana passada, o plantio mostrado é o do
    último registro até o fim daquela semana.
-4. **Ajustes**: nome da fazenda (vazio = "Fazenda FCG"), gerente e safra; cópia de segurança.
+4. **Ajustes**: nome da fazenda (vazio = "Fazenda FCG"), gerente e safra; login da nuvem;
+   cópia de segurança.
 
-A cópia de segurança gera um arquivo `.json` com tudo, fotos incluídas. Serve também para
-passar os dados para outro aparelho.
+A cópia de segurança gera um arquivo `.json` com tudo, fotos incluídas.
+
+## Nuvem (Supabase)
+
+- Projeto `william-os` (São Paulo). Tabela `public.campo_itens`: uma linha por talhão,
+  registro, foto ou ajuste, com `dados` em JSON e `apagado = true` para exclusão. A hora
+  `atualizado_em` vem do servidor e é o cursor da sincronização.
+- Fotos no bucket privado `campo-fotos`, em `<id do usuário>/<id da foto>.jpg`.
+- RLS: cada usuário só lê e grava as próprias linhas e a própria pasta. Sem login
+  (`anon`) a tabela recusa tudo.
+- No celular (`nuvem.js`): toda gravação entra numa fila; com sinal e login, a fila sobe
+  e depois o app traz o que mudou na nuvem. Item que mudou no celular e ainda não subiu
+  vale mais que o da nuvem. Roda ao abrir o app, ao voltar o sinal, ao voltar para o app,
+  3 s depois de cada gravação e a cada 5 minutos.
+- No primeiro login de uma conta num celular, sobe tudo o que já existe nele.
+- Outro celular: entrar com a mesma conta traz tudo, fotos incluídas.
+
+**Criar a conta do gerente** (uma vez): no painel do Supabase, projeto `william-os` →
+Authentication → Users → Add user → Create new user, com e-mail, senha e
+**Auto Confirm User** marcado. Depois o gerente entra em Ajustes → Cópia na nuvem.
 
 ## Arquivos
 
@@ -45,6 +65,7 @@ passar os dados para outro aparelho.
 | `index.html` | telas e estilo |
 | `app.js` | banco no celular (IndexedDB), registros, plantio, PDF, cópia |
 | `geo.js` | leitura de KML/KMZ, área, ponto-no-polígono, desenho do mapa |
+| `nuvem.js` | login e sincronização com o Supabase (fila, envio, recebimento) |
 | `sw.js`, `manifest.webmanifest`, `icon*.png`, `apple-touch-icon.png`, `icon.svg` | instalar na tela inicial e abrir sem internet |
 | `exemplo-talhoes.kml` | 3 talhões de exemplo (um com furo, um em duas partes) |
 | `exemplo-relatorio.pdf` | PDF gerado pelo teste |
